@@ -19,3 +19,6 @@ Die Supabase-Tabelle trainer_attempts_test wurde separat über den SQL Editor vo
 
 ## Prüfstand
 Automatisierte Prüfungen mit simulierter Datenbank prüfen Navigation, Sprachpaare, Speicherung, Wiederholung, Offline-Wiederholung und Kontowechsel. Die tatsächliche Registrierung, Bestätigungs-E-Mail, Speicherung und Trennung zweier Testkonten müssen anschließend auf der veröffentlichten Testseite geprüft werden.
+
+## Darstellung
+Aufgaben, Antworten und Lernaktionen sind optisch hervorgehoben. Menü- und Basissprache, Konto, Synchronisierung und Lernstand sind kompakter gestaltet. Bedienelemente behalten mindestens 44 Pixel Höhe; Eingabefelder verwenden mindestens 16 Pixel Schriftgröße.
