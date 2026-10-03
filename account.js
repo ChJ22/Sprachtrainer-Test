@@ -45,8 +45,9 @@
   $('progress-open').disabled = !user;
   $('progress-content').replaceChildren();
   if (!user) { $('progress-panel').hidden = true; return; }
-  const rows = merged();
-  if (!rows.length) { const p = document.createElement('p');p.textContent='Noch keine gespeicherten Antworten. Starte eine Übung.';$('progress-content').append(p); }
+  const baseLanguage = $('ui-language').value, targetLanguage = $('language').value;
+  const rows = merged().filter(row => row.base_language === baseLanguage && row.language === targetLanguage);
+  if (!rows.length) { const p = document.createElement('p');p.textContent='Noch keine gespeicherten Antworten für '+languageName(baseLanguage)+' ↔ '+languageName(targetLanguage)+'. Starte eine Übung.';$('progress-content').append(p); }
   for (const pair of new Set(rows.map(x => x.base_language+'|'+x.language))) {
    const [base,target]=pair.split('|');
    const subset = rows.filter(x => x.base_language === base && x.language === target);
@@ -145,6 +146,7 @@
   try {await scheduleSync();const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;setUser(null);}catch{status('Abmelden nicht möglich. Bitte erneut versuchen.');}
   finally{busy=false;$('account-logout').disabled=false;}
  };
+ window.addEventListener('trainer-languagechange',render);
  window.addEventListener('online',()=>scheduleSync(true));
  async function init() {
   render();

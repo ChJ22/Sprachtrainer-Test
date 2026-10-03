@@ -7,7 +7,7 @@ Der bisherige Trainer bleibt unter https://chj22.github.io/Sprachtrainer/ erreic
 Sechs Menü- und Basissprachen: Deutsch, Englisch, Französisch, Spanisch, Italienisch, Polnisch. Jede kann mit einer anderen kombiniert werden. Je Sprachpaar 300 Wörter, 120 Sätze in sechs Situationen und 60 Grammatikaufgaben je Lernrichtung. Die zwei Vorlesebuttons spielen nur nach Antippen.
 
 ## Benutzerkonten
-Optional mit E-Mail und Passwort registrieren, Bestätigungslink öffnen, anmelden. Als Gast bleibt das Training nutzbar; Gastantworten werden nicht in die Datenbank übernommen. Angemeldete Antworten werden mit Benutzer-ID, Basissprache, Lernsprache, Übungsart, Richtung und Datum gespeichert. Mein gespeicherter Lernstand zeigt beantwortete Aufgaben und offene Fehler; in der Übungsauswahl lassen sich gespeicherte Fehler wiederholen.
+Optional mit E-Mail und Passwort registrieren, Bestätigungslink öffnen, anmelden. Als Gast bleibt das Training nutzbar; Gastantworten werden nicht in die Datenbank übernommen. Angemeldete Antworten werden mit Benutzer-ID, Basissprache, Lernsprache, Übungsart, Richtung und Datum gespeichert. Mein gespeicherter Lernstand zeigt ausschließlich beantwortete Aufgaben und offene Fehler für die aktuell ausgewählte Basis- und Lernsprache. Beim Wechsel einer Sprache aktualisiert sich die Übersicht sofort; Ergebnisse anderer Sprachpaare bleiben gespeichert; in der Übungsauswahl lassen sich gespeicherte Fehler wiederholen.
 
 Nicht übertragene Antworten bleiben im lokalen Speicher desselben Benutzers vorgemerkt. Synchronisieren versucht erneut zu übertragen. Beim Kontowechsel wird die Runde zurückgesetzt. Das ist noch kein Fortsetzen exakt derselben laufenden Runde.
 
