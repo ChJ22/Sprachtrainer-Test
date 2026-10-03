@@ -150,8 +150,8 @@ $('saved-errors').onclick=async()=>{
   const selected=$('category-filter').value;
   words=all.filter(item=>mode==='words'||selected==='all'||item.category===selected);
   const saved=window.TrainerStore.wrongEntries({base_language:uiLanguage,language:lang,mode,direction},words);
-  if(!saved.length){$('saved-errors-status').textContent='Keine offenen gespeicherten Fehler für diese Auswahl.';return;}
+  if(!saved.length){$('saved-errors-status').textContent=t('noSavedErrors');return;}
   queue=shuffle(saved);score=answered=0;mistakes=new Map();reviewOnly=true;
   $('setup').classList.add('hidden');$('review').classList.add('hidden');$('game').classList.remove('hidden');show();
- }catch{if(version===navigationVersion)$('saved-errors-status').textContent='Gespeicherte Fehler konnten nicht gestartet werden.';}
+ }catch{if(version===navigationVersion)$('saved-errors-status').textContent=t('savedErrorsError');}
 };

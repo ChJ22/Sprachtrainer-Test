@@ -11,7 +11,7 @@ Optional mit E-Mail und Passwort registrieren, Bestätigungslink öffnen, anmeld
 
 Nicht übertragene Antworten bleiben im lokalen Speicher desselben Benutzers vorgemerkt. Synchronisieren versucht erneut zu übertragen. Beim Kontowechsel wird die Runde zurückgesetzt. Das ist noch kein Fortsetzen exakt derselben laufenden Runde.
 
-Die neue Kontoverwaltung ist vorerst deutsch beschriftet. Die bisherigen Lernmenüs sind weiterhin in sechs Sprachen verfügbar. Grammatik-Erklärungen sind weiterhin deutsch, einzelne Übersetzungen für Grammatikbeispiele fehlen in manchen Sprachpaaren.
+Kontoverwaltung, Statusmeldungen, Lernstandsübersicht und Fehlerwiederholung folgen wie die Lernmenüs der gewählten Menüsprache (alle sechs Sprachen). Grammatik-Erklärungen sind weiterhin deutsch, einzelne Übersetzungen für Grammatikbeispiele fehlen in manchen Sprachpaaren.
 
 ## Veröffentlichung
 Alle Dateien aus dem entpackten Ordner direkt im Stammverzeichnis des separaten Repository Sprachtrainer-Test hochladen. GitHub Pages: Deploy from a branch, main, / (root).

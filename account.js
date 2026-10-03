@@ -9,7 +9,8 @@
  const redirect = location.origin + location.pathname.replace(/index\.html$/, '').replace(/\/?$/, '/');
  const storagePrefix = 'trainer-test-v1:' + project + ':';
  const keyFor = uid => storagePrefix + uid;
- const status = text => { $('account-status').textContent = text; };
+ let statusKey='', statusParams={};
+ const status = (key,params={}) => { statusKey=key;statusParams=params;$('account-status').textContent=t(key,params); };
  const itemKey = (base, lang, mode, entry) => JSON.stringify([base, lang, mode, entry.category, entry.de, entry.target, entry.prompt || '']);
  function merged() {
   const map = new Map(remote);
@@ -38,7 +39,8 @@
   return entries.filter(entry => saved.get(itemKey(scope.base_language,scope.language,scope.mode,entry))?.correct === false);
  }
  function render() {
-  $('account-label').textContent = user ? 'Angemeldet: ' + (user.user_metadata?.display_name || user.email || 'Nutzer') : 'Gast · Ergebnisse nur in dieser Runde';
+  if(statusKey)$('account-status').textContent=t(statusKey,statusParams);
+  $('account-label').textContent = user ? t('signedIn',{name:user.user_metadata?.display_name || user.email || t('learner')}) : t('guestLabel');
   $('account-form').hidden = !!user;
   $('account-logout').hidden = !user;
   $('account-sync').hidden = !user;
@@ -47,17 +49,17 @@
   if (!user) { $('progress-panel').hidden = true; return; }
   const baseLanguage = $('ui-language').value, targetLanguage = $('language').value;
   const rows = merged().filter(row => row.base_language === baseLanguage && row.language === targetLanguage);
-  if (!rows.length) { const p = document.createElement('p');p.textContent='Noch keine gespeicherten Antworten für '+languageName(baseLanguage)+' ↔ '+languageName(targetLanguage)+'. Starte eine Übung.';$('progress-content').append(p); }
+  if (!rows.length) { const p = document.createElement('p');p.textContent=t('noPairAnswers',{base:languageName(baseLanguage),target:languageName(targetLanguage)});$('progress-content').append(p); }
   for (const pair of new Set(rows.map(x => x.base_language+'|'+x.language))) {
    const [base,target]=pair.split('|');
    const subset = rows.filter(x => x.base_language === base && x.language === target);
    if (!subset.length) continue;
    const section = document.createElement('section'), heading = document.createElement('h3');heading.textContent=languageName(base)+' ↔ '+languageName(target);section.append(heading);
-   for (const [mode,name] of [['words','Wörter'],['sentences','Sätze'],['grammar','Grammatik']]) {
+   for (const [mode,name] of [['words','progressWords'],['sentences','progressSentences'],['grammar','progressGrammar']]) {
     const attempts=subset.filter(x=>x.mode===mode), last=new Map();
     for(const x of attempts) last.set(x.item_key+'|'+x.direction,x);
     const p=document.createElement('p');
-    p.textContent=`${name}: ${attempts.filter(x=>x.correct).length} von ${attempts.length} Antworten richtig · ${last.size} Aufgaben/Richtungen bearbeitet · ${[...last.values()].filter(x=>!x.correct).length} offene Fehler`;
+    p.textContent=t('progressStats',{mode:t(name),correct:attempts.filter(x=>x.correct).length,total:attempts.length,tasks:last.size,errors:[...last.values()].filter(x=>!x.correct).length});
     section.append(p);
    }
    $('progress-content').append(section);
@@ -89,10 +91,10 @@
     remote=downloaded;
    }
    if(user?.id!==uid || revision!==token) return;
-   status(pending.length ? `${pending.length} Antworten warten auf Übertragung.` : 'Lernstand mit der Datenbank synchronisiert.');render();
+   status(pending.length ? 'syncPending' : 'syncDone',{count:pending.length});render();
   } catch {
    if(user?.id!==uid || revision!==token) return;
-   status(storageOK ? 'Verbindung nicht möglich. Nicht übertragene Antworten bleiben auf diesem Gerät vorgemerkt. Nutze später „Synchronisieren“.' : 'Speichern derzeit nicht möglich. Lass die Seite geöffnet und versuche „Synchronisieren“ erneut.');render();
+   status(storageOK ? 'syncOffline' : 'syncStorageError');render();
   }
  }
  function scheduleSync(pull=false) {
@@ -104,21 +106,21 @@
   if((user?.id || null)===(next?.id || null)) {user=next;render();return;}
   revision++;user=next;remote=new Map();pending=user ? readQueue(user.id) : [];render();
   window.dispatchEvent(new Event('trainer-userchange'));
-  if(user) {status('Lernstand wird geladen …');scheduleSync(true);} else status('Als Gast kannst du weiter üben.');
+  if(user) {status('progressLoading');scheduleSync(true);} else status('guestStatus');
  }
  function record({base_language,language,mode,direction,entry,chosen,correct}) {
   if(!user) return;
   const row={id:crypto.randomUUID(),user_id:user.id,base_language,language,mode,direction,item_key:itemKey(base_language,language,mode,entry),question:mode==='grammar'?entry.prompt:direction==='de'?entry.de:entry.target,expected:mode==='grammar'?entry.answer:direction==='de'?entry.target:entry.de,chosen,correct:!!correct,answered_at:new Date().toISOString()};
   pending.push(row);writeQueue();render();
-  status(storageOK ? 'Antwort wird gespeichert …' : 'Lokaler Speicher nicht verfügbar. Antwort wird online übertragen …');scheduleSync();
+  status(storageOK ? 'answerSaving' : 'answerOnline');scheduleSync();
  }
  window.TrainerStore={record,wrongEntries,isLoggedIn:()=>!!user,refresh:()=>scheduleSync(true)};
  $('progress-open').onclick=()=>{ $('progress-panel').hidden=!$('progress-panel').hidden;render();if(!$('progress-panel').hidden)scheduleSync(true); };
  $('account-sync').onclick=()=>scheduleSync(true);
  function message(error) {
-  if(error?.message?.includes('Invalid login credentials')) return 'E-Mail oder Passwort stimmt nicht.';
-  if(error?.message?.includes('Email not confirmed')) return 'Bitte bestätige zuerst den Link in deiner E-Mail.';
-  return 'Das Konto konnte nicht verarbeitet werden. Prüfe deine Angaben und versuche es erneut. Bei E-Mail-Limits bitte später erneut versuchen.';
+  if(error?.message?.includes('Invalid login credentials')) return 'invalidLogin';
+  if(error?.message?.includes('Email not confirmed')) return 'emailUnconfirmed';
+  return 'accountError';
  }
  async function accountAction(kind) {
   if(!client || busy) return;
@@ -127,10 +129,10 @@
   try {
    const email=$('account-email').value.trim(),password=$('account-password').value;
    if(kind==='signup') {
-    const {data,error}=await client.auth.signUp({email,password,options:{emailRedirectTo:redirect,data:{display_name:$('account-name').value.trim() || 'Lernender'}}});
+    const {data,error}=await client.auth.signUp({email,password,options:{emailRedirectTo:redirect,data:{display_name:$('account-name').value.trim() || t('learner')}}});
     if(error)throw error;
     $('account-password').value='';
-    if(data.session){setUser(data.session.user);}else status('Falls die Registrierung möglich ist, erhältst du eine Bestätigungs-E-Mail. Öffne den Link und melde dich danach hier an.');
+    if(data.session){setUser(data.session.user);}else status('confirmSignup');
    }else{
     const {data,error}=await client.auth.signInWithPassword({email,password});if(error)throw error;
     $('account-password').value='';setUser(data.user);
@@ -143,23 +145,23 @@
  $('account-logout').onclick=async()=>{
   if(!client || busy)return;
   busy=true;$('account-logout').disabled=true;
-  try {await scheduleSync();const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;setUser(null);}catch{status('Abmelden nicht möglich. Bitte erneut versuchen.');}
+  try {await scheduleSync();const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;setUser(null);}catch{status('logoutError');}
   finally{busy=false;$('account-logout').disabled=false;}
  };
  window.addEventListener('trainer-languagechange',render);
  window.addEventListener('online',()=>scheduleSync(true));
  async function init() {
   render();
-  if(!project || !cfg.supabasePublishableKey) { status('Konten sind noch nicht verbunden. Die Testversion lässt sich als Gast ausprobieren.');return; }
-  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(project) || !/^sb_publishable_/.test(cfg.supabasePublishableKey)) {status('Konfiguration prüfen: Projekt-URL und öffentlicher Publishable Key erforderlich.');return;}
+  if(!project || !cfg.supabasePublishableKey) { status('accountsUnconfigured');return; }
+  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(project) || !/^sb_publishable_/.test(cfg.supabasePublishableKey)) {status('accountConfigError');return;}
   try {
    if(!window.supabase)await new Promise((resolve,reject)=>{const s=document.createElement('script');const timeout=setTimeout(()=>reject(new Error('SDK timeout')),10000);s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';s.onload=()=>{clearTimeout(timeout);resolve();};s.onerror=()=>{clearTimeout(timeout);reject(new Error('SDK unavailable'));};document.head.append(s);});
    client=window.supabase.createClient(project,cfg.supabasePublishableKey,{auth:{storageKey:storagePrefix+'auth',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
    client.auth.onAuthStateChange((event,session)=>{setTimeout(()=>setUser(session?.user || null),0);});
    const {data,error}=await client.auth.getSession();if(error)throw error;setUser(data.session?.user || null);
    $('account-login').disabled=false;$('account-signup').disabled=false;
-   if(!user)status('Melde dich an oder lege ein Testkonto an.');
-  }catch{status('Kontoverbindung nicht verfügbar. Du kannst als Gast üben.');}
+   if(!user)status('accountWelcome');
+  }catch{status('accountUnavailable');}
  }
  init();
 })();
