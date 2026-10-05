@@ -1,3 +1,4 @@
+let dialogueHistory=[],activeDialogue='';
 let navigationVersion=0;
 let feedbackError='',modeError='',lastCorrect=null,startError=false;
 const $=id=>document.getElementById(id), languages=[{id:'de',voice:'de-DE'},...window.LANGUAGES];
@@ -7,24 +8,24 @@ const germanButton=document.createElement('button');germanButton.type='button';g
 const targetButton=document.createElement('button');targetButton.type='button';targetButton.textContent=t('listen',{language:languageName('pl')});
 audioButtons.append(germanButton,targetButton);$('question').after(audioButtons);
 function speak(text,locale){if(!('speechSynthesis' in window)){ feedbackError='speechError';$('feedback').textContent=t('speechError');return}const utterance=new SpeechSynthesisUtterance(text);utterance.lang=locale;utterance.rate=.85;const voice=speechSynthesis.getVoices().find(v=>v.lang.toLowerCase()===locale.toLowerCase());if(voice)utterance.voice=voice;speechSynthesis.cancel();speechSynthesis.speak(utterance)}
-germanButton.onclick=()=>{if(current?.de)speak(current.de,voiceLocale(uiLanguage))};
-targetButton.onclick=()=>{if(current?.target)speak(current.target,voiceLocale(lang))};
+germanButton.onclick=()=>{if(current?.de)speak(mode==='dialogues'&&locked?current.replyBase:current.de,voiceLocale(uiLanguage))};
+targetButton.onclick=()=>{if(current?.target)speak(mode==='dialogues'&&locked?current.replyTarget:current.target,voiceLocale(lang))};
 function voiceLocale(id){return languages.find(l=>l.id===id).voice}
 function populateLanguages(){const previous=$('language').value;$('language').replaceChildren();for(const l of languages.filter(l=>l.id!==uiLanguage)){const o=document.createElement('option');o.value=l.id;o.textContent=languageName(l.id);$('language').append(o)}if(previous!==uiLanguage&&languages.some(l=>l.id===previous))$('language').value=previous;lang=$('language').value;window.dispatchEvent(new Event('trainer-languagechange'))}
 populateLanguages();
 $('language').onchange=()=>{lang=$('language').value;window.dispatchEvent(new Event('trainer-languagechange'))};
 $('choose-language').onclick=()=>{startError=false;lang=$('language').value;window.dispatchEvent(new Event('trainer-languagechange'));$('language-screen').classList.add('hidden');$('menu').classList.remove('hidden');$('intro').textContent=t('menu',{de:languageName(uiLanguage),language:languageName(lang)})};
 $('language-back').onclick=()=>{$('menu').classList.add('hidden');$('language-screen').classList.remove('hidden');$('intro').textContent=t('choose',{base:languageName(uiLanguage)});modeError='';$('mode-message').textContent=''};
-function openSetup(selectedMode){$('saved-errors-status').textContent='';startError=false;mode=selectedMode;$('category-filter-label').classList.toggle('hidden',mode==='words');$('direction-label').classList.remove('hidden');updateDirectionLabels();$('filter-title').textContent=t(mode==='grammar'?'topic':'situation');$('menu').classList.add('hidden');$('setup').classList.remove('hidden');$('intro').textContent=t(mode==='grammar'?'setupGrammar':mode==='sentences'?'setupSentences':'setupWords')}
+function openSetup(selectedMode){$('saved-errors-status').textContent='';startError=false;mode=selectedMode;$('category-filter-label').classList.toggle('hidden',mode==='words');$('direction-label').classList.remove('hidden');updateDirectionLabels();$('filter-title').textContent=t(mode==='grammar'?'topic':'situation');$('menu').classList.add('hidden');$('setup').classList.remove('hidden');$('intro').textContent=t(mode==='grammar'?'setupGrammar':mode==='sentences'?'setupSentences':mode==='dialogues'?'setupDialogues':'setupWords')}
 function setCategories(items,allLabel){const categories=[...new Set(items.map(item=>item.category))];$('category-filter').replaceChildren();for(const [value,label] of [['all',allLabel],...categories.map(c=>[c,c])]){const o=document.createElement('option');o.value=value;o.textContent=value==='all'?label:categoryName(value);$('category-filter').append(o)}}
 $('mode-words').onclick=()=>openSetup('words');
 async function ensureData(id,kind){const actual=id==='de'?'pl':id;const collection=kind==='words'?'VOCAB':kind==='sentences'?'SENTENCES':'GRAMMAR';if(!window[collection]?.[actual]){const l=languages.find(l=>l.id===actual);await load({file:kind==='words'?l.file:kind==='sentences'?l.sentences:l.grammar})}return window[collection][actual]}
 function textInLanguage(entry,id){return id==='de'?entry.de:entry.target}
-async function pairData(kind){const [base,target]=await Promise.all([ensureData(uiLanguage,kind),ensureData(lang,kind)]);const lookup=new Map(base.map(entry=>[entry.de,entry]));return target.map(entry=>{const source=lookup.get(entry.de);if(!source)throw Error('Missing translation');return {de:textInLanguage(source,uiLanguage),target:textInLanguage(entry,lang),category:entry.category}})}
+async function pairData(kind){if(kind==='dialogues')return dialogueData();const [base,target]=await Promise.all([ensureData(uiLanguage,kind),ensureData(lang,kind)]);const lookup=new Map(base.map(entry=>[entry.de,entry]));return target.map(entry=>{const source=lookup.get(entry.de);if(!source)throw Error('Missing translation');return {de:textInLanguage(source,uiLanguage),target:textInLanguage(entry,lang),category:entry.category}})}
 function grammarData(){const destination=$('direction').value==='target'?uiLanguage:lang;return destination==='de'?window.GERMAN_GRAMMAR[uiLanguage==='de'?lang:uiLanguage]:window.GRAMMAR[destination]}
 function translationFor(text,id){if(id==='de')return text;for(const key of ['SENTENCES','GRAMMAR','VOCAB']){const entry=window[key]?.[id]?.find(x=>x.de===text);if(entry)return entry.target}return ''}
 function grammarPairData(){const destination=$('direction').value==='target'?uiLanguage:lang;return grammarData().map(entry=>{const baseText=destination===uiLanguage?(destination==='de'?entry.de:entry.target):translationFor(entry.de,uiLanguage);const targetText=destination===lang?(destination==='de'?entry.de:entry.target):translationFor(entry.de,lang);return {...entry,de:baseText,target:targetText,grammarLanguage:destination}})}
-function updateDirectionLabels(){const name=languageName(lang),base=languageName(uiLanguage);$('direction').children[0].textContent=base+' → '+name;$('direction').children[1].textContent=name+' → '+base}
+function updateDirectionLabels(){if(mode==='dialogues'){$('direction-title').textContent=t('replyLanguage');$('direction').children[0].textContent=languageName(lang);$('direction').children[1].textContent=languageName(uiLanguage);return}$('direction-title').textContent=t('direction');const name=languageName(lang),base=languageName(uiLanguage);$('direction').children[0].textContent=base+' → '+name;$('direction').children[1].textContent=name+' → '+base}
 $('direction').onchange=()=>{if(mode==='grammar')setCategories(grammarData(),t('allTopics'))};
 $('mode-sentences').onclick=async()=>{const version=navigationVersion;try{const data=await pairData('sentences');if(version!==navigationVersion)return;setCategories(data,t('allSituations'));openSetup('sentences')}catch(e){if(version!==navigationVersion)return;modeError='sentenceError';$('mode-message').textContent=t('sentenceError')}};
 $('mode-grammar').onclick=async()=>{const version=navigationVersion;try{await Promise.all([ensureData(uiLanguage,'grammar'),ensureData(lang,'grammar'),ensureData(uiLanguage,'sentences'),ensureData(lang,'sentences')]);if(!window.GERMAN_GRAMMAR)await load({file:'german-grammar.js?v=20261002-1'});if(version!==navigationVersion)return;setCategories(grammarData(),t('allTopics'));openSetup('grammar')}catch(e){if(version!==navigationVersion)return;modeError='grammarError';$('mode-message').textContent=t('grammarError')}};
@@ -33,17 +34,17 @@ function goToMenu(){startError=false;if('speechSynthesis' in window)speechSynthe
 $('setup-back').onclick=goToMenu;
 function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
 function load(l){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=l.file;s.onload=resolve;s.onerror=reject;document.head.append(s)})}
-$('start').onclick=async()=>{startError=false;direction=$('direction').value;const version=navigationVersion;try{const data=mode==='grammar'?grammarPairData():await pairData(mode);if(version!==navigationVersion)return;const selected=$('category-filter').value;words=mode==='words'?data:data.filter(item=>selected==='all'||item.category===selected);if(words.length<4)throw Error('Insufficient exercise data');queue=shuffle(words);score=answered=0;mistakes=new Map();reviewOnly=false;$('review').classList.add('hidden');$('setup').classList.add('hidden');$('game').classList.remove('hidden');show()}catch(e){if(version!==navigationVersion)return;startError=true;$('intro').textContent=t('startError')}};
+$('start').onclick=async()=>{startError=false;direction=$('direction').value;const version=navigationVersion;try{const data=mode==='grammar'?grammarPairData():await pairData(mode);if(version!==navigationVersion)return;const selected=$('category-filter').value;words=mode==='words'?data:data.filter(item=>selected==='all'||item.category===selected);if(words.length<4)throw Error('Insufficient exercise data');queue=exerciseQueue(words);score=answered=0;mistakes=new Map();reviewOnly=false;$('review').classList.add('hidden');$('setup').classList.add('hidden');$('game').classList.remove('hidden');show()}catch(e){if(version!==navigationVersion)return;startError=true;$('intro').textContent=t('startError')}};
 
 $('back').onclick=goToMenu;
-function show(){if(mode==='grammar'){showGrammar();return}audioButtons.hidden=false;if('speechSynthesis' in window)speechSynthesis.cancel();if(!queue.length){if(reviewOnly){finishSession();return}queue=shuffle(words)}current=queue.shift();locked=false;$('next').classList.add('hidden');feedbackError='';lastCorrect=null;$('feedback').textContent='';$('category').textContent=categoryName(current.category);$('question').textContent=direction==='de'?current.de:current.target;germanButton.hidden=direction!=='de';targetButton.hidden=direction==='de';targetButton.textContent=t('listen',{language:languageName(lang)});$('stats').textContent=t('stats',{score,answered});const key=direction==='de'?'target':'de';const distractors=shuffle([...new Map(words.filter(w=>w[key]!==current[key]).map(w=>[w[key],w])).values()]).slice(0,3);$('answers').replaceChildren();for(const w of shuffle([current,...distractors])){const b=document.createElement('button');b.textContent=w[key];b.onclick=()=>{if(locked)return;feedbackError='';locked=true;answered++;lastCorrect=w===current;window.TrainerStore?.record({base_language:uiLanguage,language:lang,mode,direction,entry:current,chosen:w[key],correct:w===current});if(w===current){score++;resolveMistake(current);b.classList.add('right');$('feedback').textContent=t('correct')}else{recordMistake(current,w[key]);b.classList.add('wrong');$('feedback').textContent=t('solution',{answer:current[key]});queue.splice(Math.min(3,queue.length),0,current);for(const x of $('answers').children)if(x.textContent===current[key])x.classList.add('right')}$('stats').textContent=t('stats',{score,answered});germanButton.hidden=false;targetButton.hidden=false;$('next').classList.remove('hidden')};$('answers').append(b)}}
+function show(){for(const id of ['dialogue-history','dialogue-step','dialogue-instruction'])$(id).hidden=mode!=='dialogues';if(mode==='dialogues'){showDialogue();return}if(mode==='grammar'){showGrammar();return}audioButtons.hidden=false;if('speechSynthesis' in window)speechSynthesis.cancel();if(!queue.length){if(reviewOnly){finishSession();return}queue=exerciseQueue(words)}current=queue.shift();locked=false;$('next').classList.add('hidden');feedbackError='';lastCorrect=null;$('feedback').textContent='';$('category').textContent=categoryName(current.category);$('question').textContent=direction==='de'?current.de:current.target;germanButton.hidden=direction!=='de';targetButton.hidden=direction==='de';targetButton.textContent=t('listen',{language:languageName(lang)});$('stats').textContent=t('stats',{score,answered});const key=direction==='de'?'target':'de';const distractors=shuffle([...new Map(words.filter(w=>w[key]!==current[key]).map(w=>[w[key],w])).values()]).slice(0,3);$('answers').replaceChildren();for(const w of shuffle([current,...distractors])){const b=document.createElement('button');b.textContent=w[key];b.onclick=()=>{if(locked)return;feedbackError='';locked=true;answered++;lastCorrect=w===current;window.TrainerStore?.record({base_language:uiLanguage,language:lang,mode,direction,entry:current,chosen:w[key],correct:w===current});if(w===current){score++;resolveMistake(current);b.classList.add('right');$('feedback').textContent=t('correct')}else{recordMistake(current,w[key]);b.classList.add('wrong');$('feedback').textContent=t('solution',{answer:current[key]});queue.splice(Math.min(3,queue.length),0,current);for(const x of $('answers').children)if(x.textContent===current[key])x.classList.add('right')}$('stats').textContent=t('stats',{score,answered});germanButton.hidden=false;targetButton.hidden=false;$('next').classList.remove('hidden')};$('answers').append(b)}}
 $('next').onclick=show;
 
 function showGrammar(){
  targetButton.textContent=t('listen',{language:languageName(lang)});
  if('speechSynthesis' in window)speechSynthesis.cancel();
  audioButtons.hidden=true;
- if(!queue.length){if(reviewOnly){finishSession();return}queue=shuffle(words)}
+ if(!queue.length){if(reviewOnly){finishSession();return}queue=exerciseQueue(words)}
  current=queue.shift();locked=false;
  $('next').classList.add('hidden');feedbackError='';lastCorrect=null;$('feedback').textContent='';
  $('category').textContent=categoryName(current.category);
@@ -83,8 +84,8 @@ function finishSession(){
  if(!mistakes.size){const li=document.createElement('li');li.textContent=t('noMistakes');$('review-list').append(li)}
  for(const [entry,record] of mistakes){
   const li=document.createElement('li');
-  const question=mode==='grammar'?((direction==='target'?entry.target:entry.de)?(direction==='target'?entry.target:entry.de)+' → '+entry.prompt:entry.prompt):direction==='de'?entry.de:entry.target;
-  const answer=mode==='grammar'?entry.answer:direction==='de'?entry.target:entry.de;
+  const question=mode==='dialogues'?entry.prompt:mode==='grammar'?((direction==='target'?entry.target:entry.de)?(direction==='target'?entry.target:entry.de)+' → '+entry.prompt:entry.prompt):direction==='de'?entry.de:entry.target;
+  const answer=mode==='grammar'||mode==='dialogues'?entry.answer:direction==='de'?entry.target:entry.de;
   li.textContent=`${categoryName(entry.category)}: ${question} → ${answer}`;
   const detail=document.createElement('small');
   detail.textContent=t('yourAnswer')+' '+[...record.chosen].join(', ')+' · '+t('wrongCount',{count:record.misses})+(record.recovered?' · '+t('recovered'):'')+(mode==='grammar'?' · '+entry.explanation:'');
@@ -100,7 +101,7 @@ $('repeat-mistakes').onclick=()=>{
 };
 $('new-round').onclick=()=>{
  if('speechSynthesis' in window)speechSynthesis.cancel();
- mistakes=new Map();reviewOnly=false;queue=shuffle(words);score=answered=0;
+ mistakes=new Map();reviewOnly=false;queue=exerciseQueue(words);score=answered=0;
  $('review').classList.add('hidden');$('game').classList.remove('hidden');show();
 };
 $('review-back').onclick=goToMenu;
@@ -113,12 +114,13 @@ function refreshInterface(){
  $('filter-title').textContent=t(mode==='grammar'?'topic':'situation');
  for(const option of $('category-filter').children)option.textContent=option.value==='all'?t(mode==='grammar'?'allTopics':'allSituations'):categoryName(option.value);
  germanButton.textContent=t('listen',{language:languageName(uiLanguage)});targetButton.textContent=t('listen',{language:languageName(lang)});
- $('intro').textContent=startError?t('startError'):!$('language-screen').classList.contains('hidden')?t('choose',{base:languageName(uiLanguage)}):!$('setup').classList.contains('hidden')?t(mode==='grammar'?'setupGrammar':mode==='sentences'?'setupSentences':'setupWords'):t('menu',{de:languageName(uiLanguage),language:languageName(lang)});
+ $('intro').textContent=startError?t('startError'):!$('language-screen').classList.contains('hidden')?t('choose',{base:languageName(uiLanguage)}):!$('setup').classList.contains('hidden')?t(mode==='grammar'?'setupGrammar':mode==='sentences'?'setupSentences':mode==='dialogues'?'setupDialogues':'setupWords'):t('menu',{de:languageName(uiLanguage),language:languageName(lang)});
  $('mode-message').textContent=modeError?t(modeError):'';
  $('stats').textContent=t('stats',{score,answered});
+ if(current&&mode==='dialogues'){renderDialogueHistory();$('dialogue-step').textContent=t('dialogueStep',{step:current.step,total:6});$('dialogue-instruction').textContent=t('dialogueInstruction')+' '+t('dialogueIntent',{reply:current.spokenLanguage===uiLanguage?current.replyTarget:current.replyBase})}
  if(current){$('category').textContent=categoryName(current.category);
   if(feedbackError)$('feedback').textContent=t(feedbackError);
-  else if(locked&&lastCorrect!==null){const answer=mode==='grammar'?current.answer:direction==='de'?current.target:current.de;
+  else if(locked&&lastCorrect!==null){const answer=mode==='grammar'||mode==='dialogues'?current.answer:direction==='de'?current.target:current.de;
    $('feedback').textContent=(lastCorrect?t('correct'):t('solution',{answer}))+(mode==='grammar'?' '+current.explanation+' '+t('example')+' '+[current.de,current.target].filter(Boolean).join(' – '):'');
   }
  }
@@ -155,3 +157,52 @@ $('saved-errors').onclick=async()=>{
   $('setup').classList.add('hidden');$('review').classList.add('hidden');$('game').classList.remove('hidden');show();
  }catch{if(version===navigationVersion)$('saved-errors-status').textContent=t('savedErrorsError');}
 };
+
+
+function dialogueData(){
+ const spoken=$('direction').value==='target'?uiLanguage:lang;
+ return window.DIALOGUES.flatMap(dialogue=>dialogue.turns.map((turn,i)=>({
+  de:turn.partner[uiLanguage],target:turn.partner[lang],category:dialogue.category,
+  prompt:turn.partner[spoken],answer:turn.reply[spoken],dialogueId:dialogue.id,step:i+1,
+  options:[turn.reply[spoken],dialogue.turns[(i+2)%6].reply[spoken],dialogue.turns[(i+4)%6].reply[spoken]],
+  spokenLanguage:spoken,replyBase:turn.reply[uiLanguage],replyTarget:turn.reply[lang]
+ })));
+}
+function exerciseQueue(items){
+ if(mode!=='dialogues')return shuffle(items);
+ const ids=shuffle([...new Set(items.map(x=>x.dialogueId))]);
+ return ids.flatMap(id=>items.filter(x=>x.dialogueId===id).sort((a,b)=>a.step-b.step));
+}
+$('mode-dialogues').onclick=()=>{try{if(!window.DIALOGUES)throw Error('Missing dialogues');setCategories(dialogueData(),t('allSituations'));openSetup('dialogues')}catch{modeError='dialogueError';$('mode-message').textContent=t('dialogueError')}};
+function renderDialogueHistory(){$('dialogue-history').ariaLabel=t('dialogues');
+ $('dialogue-history').replaceChildren();
+ for(const turn of dialogueHistory){const p=document.createElement('p');p.textContent=t('dialoguePartner')+': '+turn.prompt+'\n'+t('dialogueYou')+': '+turn.reply;$('dialogue-history').append(p)}
+ $('dialogue-history').hidden=!dialogueHistory.length;
+ $('dialogue-history').scrollTop=$('dialogue-history').scrollHeight;
+}
+function showDialogue(){
+ if('speechSynthesis' in window)speechSynthesis.cancel();
+ if(!queue.length){finishSession();return}
+ current=queue.shift();
+ if(current.dialogueId!==activeDialogue||current.step===1||reviewOnly){activeDialogue=current.dialogueId;dialogueHistory=[]}
+ renderDialogueHistory();locked=false;lastCorrect=null;feedbackError='';
+ $('next').classList.add('hidden');$('feedback').textContent='';
+ $('category').textContent=categoryName(current.category);
+ $('dialogue-step').textContent=t('dialogueStep',{step:current.step,total:6});
+ $('dialogue-instruction').textContent=t('dialogueInstruction')+' '+t('dialogueIntent',{reply:current.spokenLanguage===uiLanguage?current.replyTarget:current.replyBase});
+ $('question').textContent=current.prompt;$('stats').textContent=t('stats',{score,answered});
+ audioButtons.hidden=false;germanButton.hidden=false;targetButton.hidden=false;
+ germanButton.textContent=t('listen',{language:languageName(uiLanguage)});targetButton.textContent=t('listen',{language:languageName(lang)});
+ $('answers').replaceChildren();
+ for(const option of shuffle(current.options)){
+  const button=document.createElement('button');button.textContent=option;
+  button.onclick=()=>{if(locked)return;locked=true;answered++;lastCorrect=option===current.answer;
+   window.TrainerStore?.record({base_language:uiLanguage,language:lang,mode,direction,entry:current,chosen:option,correct:lastCorrect});
+   if(lastCorrect){score++;resolveMistake(current);button.classList.add('right')}else{recordMistake(current,option);button.classList.add('wrong')}
+   for(const b of $('answers').children)if(b.textContent===current.answer)b.classList.add('right');
+   $('feedback').textContent=(lastCorrect?t('correct'):t('solution',{answer:current.answer}))+' '+current.replyBase+' – '+current.replyTarget;
+   dialogueHistory.push({prompt:current.prompt,reply:current.answer});renderDialogueHistory();
+   $('stats').textContent=t('stats',{score,answered});$('next').classList.remove('hidden');
+  };$('answers').append(button);
+ }
+}

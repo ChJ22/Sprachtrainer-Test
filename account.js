@@ -4,7 +4,7 @@
  const cfg = window.TRAINER_CONFIG || {};
  let client = null, user = null, revision = 0, remote = new Map(), pending = [], storageOK = true;
  let pipeline = Promise.resolve(), busy = false;
- const table = 'trainer_attempts_test';
+ const table = 'trainer_attempts_test', dialogueTable='trainer_dialog_attempts_test';
  const project = String(cfg.supabaseUrl || '').replace(/\/$/, '');
  const redirect = location.origin + location.pathname.replace(/index\.html$/, '').replace(/\/?$/, '/');
  const storagePrefix = 'trainer-test-v1:' + project + ':';
@@ -55,7 +55,7 @@
    const subset = rows.filter(x => x.base_language === base && x.language === target);
    if (!subset.length) continue;
    const section = document.createElement('section'), heading = document.createElement('h3');heading.textContent=languageName(base)+' ↔ '+languageName(target);section.append(heading);
-   for (const [mode,name] of [['words','progressWords'],['sentences','progressSentences'],['grammar','progressGrammar']]) {
+   for (const [mode,name] of [['words','progressWords'],['sentences','progressSentences'],['grammar','progressGrammar'],['dialogues','progressDialogues']]) {
     const attempts=subset.filter(x=>x.mode===mode), last=new Map();
     for(const x of attempts) last.set(x.item_key+'|'+x.direction,x);
     const p=document.createElement('p');
@@ -70,23 +70,25 @@
   if (!client || !uid || user?.id !== uid || revision !== token) return;
   const outgoing = pending.slice();
   try {
-   for(let i=0;i<outgoing.length;i+=100) {
+   for(const destination of [table,dialogueTable]){const scoped=outgoing.filter(x=>(x.mode==='dialogues'?dialogueTable:table)===destination);for(let i=0;i<scoped.length;i+=100) {
     if(user?.id!==uid || revision!==token) return;
-    const batch=outgoing.slice(i,i+100);
-    const { error }=await client.from(table).upsert(batch,{onConflict:'id',ignoreDuplicates:true});
+    const batch=scoped.slice(i,i+100);
+    const { error }=await client.from(destination).upsert(batch,{onConflict:'id',ignoreDuplicates:true});
     if(error) throw error;
     if(user?.id!==uid || revision!==token) return;
     for(const row of batch) remote.set(row.id,row);
     const ids=new Set(batch.map(x=>x.id));pending=pending.filter(x=>!ids.has(x.id));writeQueue();
    }
+   }
    if(pull) {
     const downloaded=new Map();
-    for(let from=0;;from+=1000) {
-     const {data,error}=await client.from(table).select('*').eq('user_id',uid).order('answered_at').order('id').range(from,from+999);
-     if(error) throw error;
+    for(const destination of [table,dialogueTable]){for(let from=0;;from+=1000) {
+     const {data,error}=await client.from(destination).select('*').eq('user_id',uid).order('answered_at').order('id').range(from,from+999);
+     if(error){if(destination===dialogueTable&&['42P01','PGRST205'].includes(error.code))break;throw error;}
      if(user?.id!==uid || revision!==token) return;
      for(const row of data || []) downloaded.set(row.id,row);
      if(!data || data.length<1000) break;
+    }
     }
     remote=downloaded;
    }
@@ -110,7 +112,7 @@
  }
  function record({base_language,language,mode,direction,entry,chosen,correct}) {
   if(!user) return;
-  const row={id:crypto.randomUUID(),user_id:user.id,base_language,language,mode,direction,item_key:itemKey(base_language,language,mode,entry),question:mode==='grammar'?entry.prompt:direction==='de'?entry.de:entry.target,expected:mode==='grammar'?entry.answer:direction==='de'?entry.target:entry.de,chosen,correct:!!correct,answered_at:new Date().toISOString()};
+  const row={id:crypto.randomUUID(),user_id:user.id,base_language,language,mode,direction,item_key:itemKey(base_language,language,mode,entry),question:mode==='grammar'||mode==='dialogues'?entry.prompt:direction==='de'?entry.de:entry.target,expected:mode==='grammar'||mode==='dialogues'?entry.answer:direction==='de'?entry.target:entry.de,chosen,correct:!!correct,answered_at:new Date().toISOString()};
   pending.push(row);writeQueue();render();
   status(storageOK ? 'answerSaving' : 'answerOnline');scheduleSync();
  }
