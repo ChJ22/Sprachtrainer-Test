@@ -140,3 +140,21 @@ button.primary { background: var(--accent); color: white; border-color: var(--ac
   #review > .row { display: grid; grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+
+/* Saved progress: category first, outstanding mistakes at a glance. */
+#progress-content section { display: grid; gap: 10px; }
+#progress-content section > h3 { margin: 0 0 4px; }
+.progress-category { border: 1px solid var(--line); border-radius: 12px; background: white; padding: 14px 16px; }
+.progress-category-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.progress-category h4 { margin: 0; font-size: 1rem; font-weight: 750; color: var(--ink); }
+.progress-error-badge { display: flex; align-items: center; gap: 7px; flex-shrink: 0; border-radius: 9px; padding: 6px 9px; color: var(--muted); background: var(--soft); }
+.progress-error-badge strong { font-size: 1.25rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.progress-error-badge span { font-size: .72rem; line-height: 1.3; max-width: 105px; }
+.progress-category.has-errors { border-color: #dec29c; border-left: 4px solid #b27322; background: #fffcf6; }
+.has-errors .progress-error-badge { background: #fae9cd; color: #804e14; }
+#progress-panel .progress-category p { margin: 10px 0 0; font-size: .78rem; line-height: 1.5; }
+@media (max-width: 380px) {
+ .progress-category { padding: 12px; }
+ .progress-category-header { gap: 8px; flex-wrap: wrap; }
+ .progress-error-badge { flex-shrink: 1; }
+}

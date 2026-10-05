@@ -40,3 +40,6 @@ Automatisierte Simulationen prüfen die Dialognavigation für alle 30 Sprachpaar
 
 ## Überarbeitetes Layout
 Ruhiger Markenbereich, kompakte Kontoverwaltung und ein eigener, hervorgehobener Lernbereich. Übungsarten erscheinen auf großen Bildschirmen in zwei Spalten und auf dem Smartphone untereinander. Einheitliche Abstände, gut erkennbare Fokusmarkierungen, klare Antwortzustände und ein reduzierter Bewegungsmodus unterstützen die Bedienung. styles.css muss mit hochgeladen werden. Die Datenbank benötigt für die Layoutänderung keine Anpassung.
+
+## Lernstand hervorheben
+Wörter, Sätze, Grammatik und Dialoge haben eigene Karten mit fett hervorgehobener Kategorie und einer großen Zahl offener Fehler. Bereiche mit offenen Fehlern sind bernsteinfarben markiert; bei null offenen Fehlern bleibt die Karte neutral. Die ergänzenden Antwortzahlen stehen kleiner darunter. Die Anzeige bleibt nach Sprachpaar und Benutzer getrennt und folgt allen sechs Menüsprachen.

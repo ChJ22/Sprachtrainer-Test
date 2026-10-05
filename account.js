@@ -58,9 +58,19 @@
    for (const [mode,name] of [['words','progressWords'],['sentences','progressSentences'],['grammar','progressGrammar'],['dialogues','progressDialogues']]) {
     const attempts=subset.filter(x=>x.mode===mode), last=new Map();
     for(const x of attempts) last.set(x.item_key+'|'+x.direction,x);
-    const p=document.createElement('p');
-    p.textContent=t('progressStats',{mode:t(name),correct:attempts.filter(x=>x.correct).length,total:attempts.length,tasks:last.size,errors:[...last.values()].filter(x=>!x.correct).length});
-    section.append(p);
+    const errors=[...last.values()].filter(x=>!x.correct).length;
+    const card=document.createElement('article'), header=document.createElement('div');
+    card.classList.add('progress-category');
+    card.classList.add(errors ? 'has-errors' : 'no-errors');
+    header.classList.add('progress-category-header');
+    const title=document.createElement('h4');title.textContent=t(name);
+    const badge=document.createElement('div'), count=document.createElement('strong'), label=document.createElement('span');
+    badge.classList.add('progress-error-badge');
+    count.textContent=String(errors);label.textContent=t('progressOpenErrors');
+    badge.append(count,label);header.append(title,badge);
+    const detail=document.createElement('p');
+    detail.textContent=t('progressDetails',{correct:attempts.filter(x=>x.correct).length,total:attempts.length,tasks:last.size});
+    card.append(header,detail);section.append(card);
    }
    $('progress-content').append(section);
   }
